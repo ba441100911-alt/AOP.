@@ -1,0 +1,27 @@
+# PhysioNet PICS dataset (large; download via picsdb/_download.py)
+picsdb/*.dat
+picsdb/*.hea
+picsdb/*.atr
+picsdb/*.qrsc
+picsdb/*.resp
+picsdb/RECORDS
+picsdb/ANNOTATORS
+picsdb/.neosense_cache/
+
+# Trained model cache
+**/.neosense_cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+.env
+
+# Smoke tests (local dev only)
+backend/_smoke_test.py
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/

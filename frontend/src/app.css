@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+  --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #1f6fdc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: #0f172a;
+  background-color: #f4f8fc;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* Accessibility: skip-link visually hidden until focused */
+.skip-link {
+  position: absolute;
+  inset-inline-start: 1rem;
+  top: -3rem;
+  z-index: 100;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.5rem;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 160ms ease;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 1rem;
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+/* Visually hidden helper (screen-reader only). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Consistent focus ring on all interactive controls. */
+:where(button, [role="button"], a, select, input, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 0.5rem;
+}
+
+/* Honor user motion preference for all animations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Ensure RTL UI mirrors correctly when locale changes. */
+[dir="rtl"] .skip-link {
+  inset-inline-start: 1rem;
+}
+
+/* Hover-reveal scrollbar: thumb stays transparent until the user hovers
+   over (or focuses inside) the scrollable container. Width is reserved
+   to avoid layout shift on hover. */
+.hover-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 200ms ease;
+}
+
+.hover-scroll:hover,
+.hover-scroll:focus-within {
+  scrollbar-color: rgba(100, 116, 139, 0.55) transparent;
+}
+
+.hover-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.hover-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hover-scroll::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+  transition: background-color 200ms ease;
+}
+
+.hover-scroll:hover::-webkit-scrollbar-thumb,
+.hover-scroll:focus-within::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.55);
+}
+
+.hover-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(71, 85, 105, 0.75);
+}
