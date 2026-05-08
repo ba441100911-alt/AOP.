@@ -28,3 +28,10 @@ backend/_smoke_test.py
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Local-only HF deploy helper (never commit)
+push-to-hf.ps1
+
+# Stray Apnea-ECG sample files that don't belong here (cleaned from history)
+a01.*
+a01r.*
