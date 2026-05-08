@@ -7,6 +7,8 @@ from typing import Dict
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from neosense_ai import NeoSenseEngine
 
@@ -77,3 +79,23 @@ async def websocket_nicu(websocket: WebSocket) -> None:
       await asyncio.sleep(1)
   except WebSocketDisconnect:
     return
+
+
+# Serve the built React app from the same origin (single-service deploys like
+# Hugging Face Spaces). Skipped automatically when NEOSENSE_FRONTEND_DIST is
+# unset or doesn't exist — keeps local dev (`uvicorn --reload`) untouched.
+_frontend_dist_env = os.getenv("NEOSENSE_FRONTEND_DIST")
+if _frontend_dist_env:
+  _dist = Path(_frontend_dist_env)
+  if _dist.is_dir():
+    _index_file = _dist / "index.html"
+    _assets_dir = _dist / "assets"
+    if _assets_dir.is_dir():
+      app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
+
+    @app.get("/{full_path:path}")
+    def spa_catchall(full_path: str):  # noqa: ARG001 — path captured for SPA routing
+      candidate = _dist / full_path
+      if full_path and candidate.is_file():
+        return FileResponse(candidate)
+      return FileResponse(_index_file)

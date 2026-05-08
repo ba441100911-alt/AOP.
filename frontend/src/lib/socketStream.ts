@@ -18,7 +18,17 @@ export interface SocketFrame {
   interventions: string[];
 }
 
-const WS_URL = (import.meta.env.VITE_NEOSENSE_WS_URL as string | undefined) ?? "ws://localhost:8000/ws/nicu";
+const resolveWsUrl = (): string => {
+  const fromEnv = import.meta.env.VITE_NEOSENSE_WS_URL as string | undefined;
+  if (fromEnv && fromEnv.length > 0) return fromEnv;
+  if (typeof window !== "undefined" && window.location?.host) {
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${proto}//${window.location.host}/ws/nicu`;
+  }
+  return "ws://localhost:8000/ws/nicu";
+};
+
+const WS_URL = resolveWsUrl();
 
 let socket: WebSocket | null = null;
 const listeners = new Set<(frame: SocketFrame) => void>();

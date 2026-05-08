@@ -1,0 +1,26 @@
+**/.git
+**/.venv
+**/__pycache__
+**/.neosense_cache
+**/node_modules
+**/dist
+**/.DS_Store
+
+# Bulky PICS dataset binaries: bootstrap.py downloads them at runtime onto
+# the writable /tmp volume so they never bloat the image.
+picsdb/*.dat
+picsdb/*.hea
+picsdb/*.atr
+picsdb/*.qrsc
+picsdb/*.resp
+picsdb/RECORDS
+picsdb/ANNOTATORS
+
+# Misc
+.env
+.env.*
+*.log
+backend/_smoke_test.py
+
+# Stray non-PICS samples that ended up next to the repo root
+a01.*

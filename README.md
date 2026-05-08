@@ -1,3 +1,15 @@
+---
+title: NeoSense AI
+emoji: "\U0001FAC0"
+colorFrom: pink
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+short_description: NICU predictive monitor for preterm infants (PICS dataset)
+---
+
 # NeoSense AI (Advanced Clinical Prototype)
 
 High-fidelity NICU monitoring demo for **preterm infants**, driven by the PhysioNet **Preterm Infant Cardio-Respiratory Signals** database (PICS):
@@ -93,35 +105,36 @@ npm run preview
 
 ## Deployment
 
-The included `render.yaml` is a single Blueprint that deploys **both** services to Render with one click:
+### Free option — Hugging Face Spaces (recommended)
 
-| Service | Type | URL | Plan |
-|---------|------|-----|------|
-| `neosense-backend` | Python Web Service (FastAPI + WebSocket) | `https://neosense-backend.onrender.com` | Starter ($7) + 4 GB Disk ($1) |
-| `neosense-frontend` | Static Site (Vite build) | `https://neosense-frontend.onrender.com` | **Free** |
+The repo ships a `Dockerfile` that builds the React frontend and serves it from FastAPI on the same port, so the entire app runs as **one Hugging Face Space** for free (no credit card required).
 
-### One-click deploy
+1. Create a free account at [huggingface.co](https://huggingface.co/join).
+2. Click **New Space** → choose **Docker** as the SDK, name it (e.g. `neosense`), keep it public.
+3. Add the Space as a git remote and push:
 
-1. Push this repo to GitHub.
-2. In Render: **Blueprints → New Blueprint Instance** → select the repo → **Apply**.
-3. Render reads `render.yaml` and provisions both services. The frontend env var `VITE_NEOSENSE_WS_URL` and backend env var `NEOSENSE_ALLOWED_ORIGINS` are wired to each other automatically.
-4. Wait for the backend's first deploy: `backend/bootstrap.py` downloads the PICS dataset (~1.6 GB) directly to the persistent disk at `/var/data/picsdb/`. The RandomForest then trains on first request and caches the pickle on the same disk, so subsequent restarts boot in seconds.
+   ```bash
+   git remote add hf https://huggingface.co/spaces/<your-username>/neosense
+   git push hf main
+   ```
 
-Verify:
+4. The Space auto-builds:
+   - Stage 1 builds the Vite frontend (~1 min).
+   - Stage 2 installs Python deps and ships the runtime image (~3 min).
+   - First boot runs `backend/bootstrap.py`, which downloads the PICS dataset (~1.6 GB) into the Space's writable `/tmp` (~5 min, one-time per cold start).
+   - The RandomForest trains on first WebSocket connect (~30 s) and caches under `/tmp/picsdb/.neosense_cache/`.
+5. Open `https://<your-username>-neosense.hf.space` — dashboard, WebSocket, and APIs are all on the same origin.
 
-```bash
-curl https://neosense-backend.onrender.com/health
-# {"status":"ok","dataset":"PICS (PhysioNet picsdb 1.0.0)"}
-```
+**Why HF Space:** 16 GB RAM, 50 GB ephemeral disk, native WebSocket, free for CPU workloads, perfect for ML demos. The frontend's WebSocket URL auto-derives from `window.location`, so no env var wiring is required.
 
-Then open `https://neosense-frontend.onrender.com` — the dashboard should connect over WebSocket.
+### Paid option — Render Blueprint
 
-### Cost & alternatives
+The included `render.yaml` deploys both services on Render (frontend free + backend Starter $7 + 4 GB Disk $1 ≈ **$8/mo**). Use this when you want a Persistent Disk so the dataset survives restarts without re-downloading. Steps in the Render dashboard: **Blueprints → New Blueprint Instance → select repo → Apply**.
 
-- **Default (Render-only)**: Static frontend free, Starter backend + 4 GB disk ≈ **$8/mo**.
-- **Vercel for frontend**: optional split — keep the Render backend, host the frontend on Vercel (uses the included `frontend/vercel.json`). Set `VITE_NEOSENSE_WS_URL` in Vercel's Environment Variables and add the Vercel origin to `NEOSENSE_ALLOWED_ORIGINS` on Render.
-- **Single-service mode**: have FastAPI itself serve the built React `dist/` (one URL, no CORS). Useful for VPS-style deployments; ask in `backend/server.py` to mount `StaticFiles` if you'd rather skip the static service.
-- **Truly free**: Hugging Face Spaces (Docker SDK) hosts the FastAPI backend with persistent storage on the free tier; frontend stays on Render Static or Vercel.
+### Other paths
+
+- **Vercel + HF Space**: host the frontend on Vercel (uses the included `frontend/vercel.json`) and point `VITE_NEOSENSE_WS_URL` at `wss://<user>-<space>.hf.space/ws/nicu`.
+- **Single VPS**: any $5 droplet runs the Dockerfile directly (`docker build -t neosense . && docker run -p 7860:7860 neosense`).
 
 ## Dataset
 
