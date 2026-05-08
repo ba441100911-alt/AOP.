@@ -1,16 +1,32 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 from typing import Dict
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 from neosense_ai import NeoSenseEngine
 
 app = FastAPI(title="NeoSense NICU Predictive Stream", version="2.0.0")
 
-DATASET_DIR = str(Path(__file__).resolve().parents[1] / "picsdb")
+# CORS: in production set NEOSENSE_ALLOWED_ORIGINS to your Vercel/static origin(s),
+# comma-separated. Defaults to "*" for local dev convenience.
+_origins_env = os.getenv("NEOSENSE_ALLOWED_ORIGINS", "*").strip()
+_allowed_origins = ["*"] if _origins_env == "*" else [o.strip() for o in _origins_env.split(",") if o.strip()]
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=_allowed_origins,
+  allow_credentials=False,
+  allow_methods=["*"],
+  allow_headers=["*"],
+)
+
+# Dataset dir is overridable so deployments can point at a persistent disk
+# (e.g. Render disk mounted at /data/picsdb).
+DATASET_DIR = os.getenv("NEOSENSE_DATASET_DIR") or str(Path(__file__).resolve().parents[1] / "picsdb")
 TRAINING_RECORDS = [
   "infant1",
   "infant2",

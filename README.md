@@ -1,48 +1,142 @@
 # NeoSense AI (Advanced Clinical Prototype)
 
-High-fidelity NICU monitoring demo for **preterm infants** built on the
-PhysioNet **Preterm Infant Cardio-Respiratory Signals** database (PICS):
+High-fidelity NICU monitoring demo for **preterm infants**, driven by the PhysioNet **Preterm Infant Cardio-Respiratory Signals** database (PICS):
 
-- real-time vital streaming derived from PICS ECG + respiration recordings,
-- role-based monitoring views (Admin / Nurse),
-- strict clinical event rules (AOP / Bradycardia / Periodic Breathing),
-- 30-120 s predictive horizon + risk probability per second,
-- dynamic patient state classification (Critical / Needs Attention / Stable),
-- AI recommendations + non-decisive intervention support for critical cases,
-- drill-down patient analytics.
+- Real-time vital streaming from PICS ECG + respiration recordings
+- Role-based views (Admin / Nurse) and patient drill-down
+- Clinical event rules (AOP / Bradycardia / Periodic Breathing)
+- 30–120 s predictive horizon with per-second risk probability
+- Patient state labels (Critical / Needs Attention / Stable)
+- AI recommendations and non-decisive intervention suggestions for critical cases
 
-## Project Structure
+**Stack:** React 19 + TypeScript + Vite + Tailwind + Recharts (frontend); FastAPI + scikit-learn + wfdb (backend).
 
-- `frontend/` - React + TypeScript + Tailwind + Recharts UI prototype
-- `backend/` - Python clinical logic + RandomForest decision module
-- `picsdb/` - Local copy of the PhysioNet PICS dataset (10 preterm infants,
-  ECG + respiration). Download with `python picsdb/_download.py`.
+## Prerequisites
+
+- **Python** 3.10+ with `pip`
+- **Node.js** 18+ and **npm**
+
+## Quick start (full stack)
+
+1. **Dataset** (required for backend realism; ~1.6 GB):
+
+   ```bash
+   python picsdb/_download.py
+   ```
+
+2. **Backend** (from repo root):
+
+   ```bash
+   cd backend
+   python -m venv .venv
+   # Windows: .venv\Scripts\activate
+   # macOS/Linux: source .venv/bin/activate
+   pip install -r requirements.txt
+   uvicorn server:app --reload --port 8000
+   ```
+
+3. **Frontend** (new terminal):
+
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+   With the backend on port 8000, the UI uses **`ws://localhost:8000/ws/nicu`** by default. No env file is required for local demo.
+
+## Project structure
+
+| Path | Purpose |
+|------|---------|
+| `frontend/` | React + TypeScript UI |
+| `backend/` | FastAPI server, `NeoSenseEngine`, RandomForest training/inference |
+| `picsdb/` | PICS dataset files after running `picsdb/_download.py` |
+
+## Backend API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Liveness + dataset label |
+| GET | `/api/frame` | Single JSON snapshot (same shape as stream frames) |
+| WebSocket | `/ws/nicu` | One JSON payload per second until the active record ends |
+
+The deployed engine uses a single infant stream (`P-001` / `NICU-1`, record `infant1` by default); see `backend/server.py` to change `record` or training IDs.
+
+### Console stream (optional)
+
+Prints the same JSON payloads to the terminal (useful for debugging without the UI):
+
+```bash
+cd backend
+python simulate_stream.py
+```
+
+## Frontend configuration
+
+Environment variables (optional). Create `frontend/.env.local` if you need non-default URLs:
+
+| Variable | Purpose |
+|----------|---------|
+| `VITE_NEOSENSE_WS_URL` | WebSocket URL (default: `ws://localhost:8000/ws/nicu`) |
+| `VITE_NEOSENSE_STREAM_URL` | HTTP polling URL; set to e.g. `http://localhost:8000/api/frame` if you prefer REST over WebSocket |
+
+If the backend is unreachable and `VITE_NEOSENSE_STREAM_URL` is unset, the app falls back to **local simulation** using the same clinical schema.
+
+### Production build
+
+```bash
+cd frontend
+npm run build
+npm run preview
+```
+
+## Deployment
+
+The included `render.yaml` is a single Blueprint that deploys **both** services to Render with one click:
+
+| Service | Type | URL | Plan |
+|---------|------|-----|------|
+| `neosense-backend` | Python Web Service (FastAPI + WebSocket) | `https://neosense-backend.onrender.com` | Starter ($7) + 4 GB Disk ($1) |
+| `neosense-frontend` | Static Site (Vite build) | `https://neosense-frontend.onrender.com` | **Free** |
+
+### One-click deploy
+
+1. Push this repo to GitHub.
+2. In Render: **Blueprints → New Blueprint Instance** → select the repo → **Apply**.
+3. Render reads `render.yaml` and provisions both services. The frontend env var `VITE_NEOSENSE_WS_URL` and backend env var `NEOSENSE_ALLOWED_ORIGINS` are wired to each other automatically.
+4. Wait for the backend's first deploy: `backend/bootstrap.py` downloads the PICS dataset (~1.6 GB) directly to the persistent disk at `/var/data/picsdb/`. The RandomForest then trains on first request and caches the pickle on the same disk, so subsequent restarts boot in seconds.
+
+Verify:
+
+```bash
+curl https://neosense-backend.onrender.com/health
+# {"status":"ok","dataset":"PICS (PhysioNet picsdb 1.0.0)"}
+```
+
+Then open `https://neosense-frontend.onrender.com` — the dashboard should connect over WebSocket.
+
+### Cost & alternatives
+
+- **Default (Render-only)**: Static frontend free, Starter backend + 4 GB disk ≈ **$8/mo**.
+- **Vercel for frontend**: optional split — keep the Render backend, host the frontend on Vercel (uses the included `frontend/vercel.json`). Set `VITE_NEOSENSE_WS_URL` in Vercel's Environment Variables and add the Vercel origin to `NEOSENSE_ALLOWED_ORIGINS` on Render.
+- **Single-service mode**: have FastAPI itself serve the built React `dist/` (one URL, no CORS). Useful for VPS-style deployments; ask in `backend/server.py` to mount `StaticFiles` if you'd rather skip the static service.
+- **Truly free**: Hugging Face Spaces (Docker SDK) hosts the FastAPI backend with persistent storage on the free tier; frontend stays on Render Static or Vercel.
 
 ## Dataset
 
-This prototype uses the **Preterm Infant Cardio-Respiratory Signals Database**
-(picsdb v1.0.0) from PhysioNet.
+This prototype uses the **Preterm Infant Cardio-Respiratory Signals Database** (picsdb v1.0.0) from PhysioNet.
 
-> Gee AH, Barbieri R, Paydarfar D, Indic P. *Predicting Bradycardia in Preterm
-> Infants Using Point Process Analysis of Heart Rate*. IEEE Trans Biomed Eng.
-> 2017;64(9):2300-2308. doi:10.1109/TBME.2016.2632746
+> Gee AH, Barbieri R, Paydarfar D, Indic P. *Predicting Bradycardia in Preterm Infants Using Point Process Analysis of Heart Rate*. IEEE Trans Biomed Eng. 2017;64(9):2300-2308. doi:10.1109/TBME.2016.2632746
 >
-> Goldberger A, et al. *PhysioBank, PhysioToolkit, and PhysioNet*. Circulation.
-> 2000;101(23):e215-e220.
+> Goldberger A, et al. *PhysioBank, PhysioToolkit, and PhysioNet*. Circulation. 2000;101(23):e215-e220.
 
-The database provides simultaneous ECG (250 / 500 Hz) and respiration (50 Hz)
-recordings of ten preterm infants (post-conceptional age 29-34 weeks) recorded
-at the University of Massachusetts Memorial Healthcare NICU. Each infant has:
+The database provides simultaneous ECG (250 / 500 Hz) and respiration (50 Hz) recordings of ten preterm infants (post-conceptional age 29–34 weeks) recorded at the University of Massachusetts Memorial Healthcare NICU. Each infant has:
 
-- `infantN_ecg.{dat,hea,atr,qrsc}` - ECG signal, header, bradycardia onset
-  annotations, and manually verified R-peak locations.
-- `infantN_resp.{dat,hea,resp}` - respiration signal, header, and automatic
-  respiration peak annotations.
+- `infantN_ecg.{dat,hea,atr,qrsc}` — ECG signal, header, bradycardia onset annotations, and manually verified R-peak locations.
+- `infantN_resp.{dat,hea,resp}` — respiration signal, header, and automatic respiration peak annotations.
 
-**Note**: PICS does not include pulse oximetry. The SpO2 channel surfaced in
-the UI is *simulated* from HR + bradycardia events for visual continuity and is
-flagged with a `SIM` tag in the monitor cards and in the API payload
-(`spo2_simulated: true`).
+**Note:** PICS does not include pulse oximetry. The SpO2 channel in the UI is **simulated** from HR + bradycardia-related logic for visual continuity and is marked with a `SIM` tag on monitor cards and via `spo2_simulated: true` in API payloads.
 
 ### Download the dataset
 
@@ -50,48 +144,13 @@ flagged with a `SIM` tag in the monitor cards and in the API payload
 python picsdb/_download.py
 ```
 
-Total size ~1.6 GB across 72 files. The downloader is idempotent and runs in
-parallel; failed transfers are retried with exponential backoff.
+Runs in parallel with retries; safe to re-run.
 
 ### Model cache
 
-The first engine startup trains a RandomForest on 7-8 infants and pickles the
-result under `picsdb/.neosense_cache/model-<hash>.pkl`. Subsequent starts (with
-the same training records) load the cached model and only stream the active
-infant's signals - reducing cold-start time from ~2-5 minutes to ~10 seconds.
-Delete the `.neosense_cache/` folder to force retraining.
+The first engine startup trains a RandomForest on seven infants and writes a pickle under `picsdb/.neosense_cache/model-<hash>.pkl`. Later starts with the same training records load the cache (~seconds instead of minutes). Delete `.neosense_cache/` to force retraining.
 
-## Frontend Run
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Optional backend stream adapter (recommended for demo realism):
-
-- set `VITE_NEOSENSE_WS_URL` to the websocket stream endpoint.
-- set `VITE_NEOSENSE_STREAM_URL` to HTTP fallback endpoint returning the
-  backend JSON payload shape.
-- when unset/unreachable, the frontend automatically falls back to local
-  simulation while keeping the same clinical schema.
-
-## Backend Run
-
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn server:app --reload --port 8000
-```
-
-Optional console stream:
-
-```bash
-python simulate_stream.py
-```
-
-The backend stream outputs per-second JSON records in this shape:
+## Example stream payload
 
 ```json
 {
@@ -118,15 +177,12 @@ The backend stream outputs per-second JSON records in this shape:
 }
 ```
 
-## Clinical Rules
+## Clinical rules
 
 | Event | Trigger |
-|---|---|
-| **Bradycardia** | HR < 100 bpm for >= 1.2 s (PICS reference definition) |
-| **AOP** (Apnea of Prematurity) | RR < 5 br/min for >= 20 s **and** SpO2 drop >= 5 from baseline |
-| **PB** (Periodic Breathing) | >= 3 short pauses (5-10 s) with low SpO2/HR variance |
+|-------|---------|
+| **Bradycardia** | HR < 100 bpm for ≥ 1.2 s (PICS reference definition) |
+| **AOP** (Apnea of Prematurity) | RR < 5 br/min for ≥ 20 s **and** SpO2 drop ≥ 5 from baseline |
+| **PB** (Periodic Breathing) | ≥ 3 short pauses (5–10 s) with low SpO2/HR variance |
 
-The RandomForest classifier is trained on per-second feature windows
-(`hr_mean`, `spo2_mean`, `rr_mean`, `hr_std`, `spo2_std`, `rr_low_ratio`)
-labeled positive in the 60 seconds preceding any bradycardia onset
-annotation, so it learns to *anticipate* events rather than only detect them.
+The RandomForest is trained on per-second feature windows (`hr_mean`, `spo2_mean`, `rr_mean`, `hr_std`, `spo2_std`, `rr_low_ratio`) labeled positive in the 60 seconds **before** bradycardia onset annotations, so it targets anticipation rather than post-hoc detection only.

@@ -3,4 +3,6 @@ pandas
 scikit-learn
 wfdb
 fastapi
-uvicorn
+uvicorn[standard]
+requests
+websockets

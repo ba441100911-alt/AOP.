@@ -6,6 +6,7 @@ rate limits / connection resets.
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -13,7 +14,10 @@ from pathlib import Path
 
 import requests
 
-OUT_DIR = Path(__file__).resolve().parent
+# Output directory is overridable via PICSDB_OUT_DIR so production deploys can
+# stream directly onto a persistent disk (e.g. /var/data/picsdb on Render).
+OUT_DIR = Path(os.getenv("PICSDB_OUT_DIR") or Path(__file__).resolve().parent)
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 BASE_URL = "https://physionet.org/files/picsdb/1.0.0"
 
 EXTENSIONS = {

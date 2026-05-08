@@ -17,6 +17,9 @@ __pycache__/
 *.pyo
 .venv/
 .env
+.env.local
+.env.*.local
+.env.production
 
 # Smoke tests (local dev only)
 backend/_smoke_test.py
