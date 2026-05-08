@@ -29,24 +29,25 @@ app.add_middleware(
 # Dataset dir is overridable so deployments can point at a persistent disk
 # (e.g. Render disk mounted at /data/picsdb).
 DATASET_DIR = os.getenv("NEOSENSE_DATASET_DIR") or str(Path(__file__).resolve().parents[1] / "picsdb")
-TRAINING_RECORDS = [
-  "infant1",
-  "infant2",
-  "infant3",
-  "infant4",
-  "infant5",
-  "infant6",
-  "infant7",
-  "infant8",
-]
 
-# Single-child deployment: all endpoints/streams expose one infant only.
+# Streaming uses infant7 (smallest record at ~80 MB) to keep cold-start fast
+# on storage-limited deploys (Hugging Face Spaces, etc.). Training uses
+# infant5 (~106 MB) which is the next-smallest record with sufficient class
+# diversity. Override via env vars if you want the original 8-infant setup.
+ACTIVE_RECORD = os.getenv("NEOSENSE_ACTIVE_RECORD", "infant7")
+_train_env = os.getenv("NEOSENSE_TRAINING_RECORDS")
+TRAINING_RECORDS = (
+  [r.strip() for r in _train_env.split(",") if r.strip()]
+  if _train_env
+  else ["infant5", "infant7"]
+)
+
 ENGINE = NeoSenseEngine(
   "P-001",
   "NICU-1",
   baseline_spo2=96.0,
   dataset_dir=DATASET_DIR,
-  record="infant1",
+  record=ACTIVE_RECORD,
   training_records=TRAINING_RECORDS,
 )
 

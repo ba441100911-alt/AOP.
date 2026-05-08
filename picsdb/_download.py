@@ -67,14 +67,23 @@ def download_one(name: str, max_retries: int = 5) -> tuple[str, bool, int]:
 
 
 def main() -> None:
-  files = file_list()
-  print(f"Downloading {len(files)} files into {OUT_DIR}")
+  records_env = os.getenv("PICSDB_RECORDS")
+  if records_env:
+    records = [r.strip() for r in records_env.split(",") if r.strip()]
+    files = [f"{rec}{suf}" for rec in records
+             for suf in [f"_ecg.{e}" for e in EXTENSIONS["ecg"]]
+                      + [f"_resp.{e}" for e in EXTENSIONS["resp"]]] + EXTRAS
+  else:
+    files = file_list()
+
+  workers = max(1, int(os.getenv("PICSDB_WORKERS", "2")))
+  print(f"Downloading {len(files)} files into {OUT_DIR} (workers={workers})", flush=True)
   t0 = time.time()
   done = 0
   bytes_total = 0
   failures: list[str] = []
 
-  with ThreadPoolExecutor(max_workers=3) as pool:
+  with ThreadPoolExecutor(max_workers=workers) as pool:
     futures = {pool.submit(download_one, f): f for f in files}
     for fut in as_completed(futures):
       name, ok, size = fut.result()
